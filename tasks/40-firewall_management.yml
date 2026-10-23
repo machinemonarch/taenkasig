@@ -1,0 +1,43 @@
+---
+- name: Manage the vLLM API port in the firewall.
+  ansible.posix.firewalld:
+    port: "{{ vllm_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: disabled
+
+- name: Manage the Open WebUI port in the firewall.
+  ansible.posix.firewalld:
+    port: "{{ webui_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: disabled
+
+- name: Manage the Caddy TCP port in the firewall.
+  ansible.posix.firewalld:
+    port: "{{ caddy_host_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Manage the Caddy UDP port in the firewall.
+  ansible.posix.firewalld:
+    port: "{{ caddy_host_port }}/udp"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Forward port 443 to the Caddy Reverse Proxy.
+  ansible.posix.firewalld:
+    port_forward:
+      - port: 443
+        proto: "{{ protocol }}"
+        toport: "{{ caddy_host_port }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - tcp
+    - udp
+  loop_control:
+    loop_var: protocol

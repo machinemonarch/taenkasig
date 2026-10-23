@@ -1,0 +1,31 @@
+# Variables pertaining to container apps go here.
+
+# vLLM vars
+vllm_image: docker.io/vllm/vllm-openai:latest
+vllm_name: "vllm"
+vllm_port: 8000
+vllm_path: "{{ container_data }}/vllm"
+vllm_model: mistralai/Ministral-3-8B-Instruct-2512
+
+# vLLM Engine Args, rendered onto the quadlet's "Exec=" line.
+vllm_engine_args:
+  max-model-len: 16384
+  enforce-eager: true
+  tokenizer-mode: mistral
+  config-format: mistral
+  load-format: mistral
+  enable-auto-tool-choice: true # Open WebUI sends tool_choice "auto" on every request.
+  tool-call-parser: mistral      # The tool-call format that the models emit.
+
+# Open WebUI vars
+webui_image: ghcr.io/open-webui/open-webui:main
+webui_name: "open-webui"
+webui_port: 8080
+webui_path: "{{ container_data }}/open-webui"
+
+# Caddy vars
+caddy_image: docker.io/library/caddy:latest
+caddy_name: "caddy"
+caddy_host_port: 8443
+caddy_path: "{{ container_data }}/caddy"
+caddy_site_address: "yoursite.example"

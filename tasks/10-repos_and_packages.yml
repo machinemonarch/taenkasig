@@ -1,0 +1,43 @@
+---
+- name: Enabling of AlmaLinux CodeReady Builder Repo permanently.
+  ansible.builtin.command: dnf config-manager --set-enabled crb
+  changed_when: false
+
+- name: Add NVIDIA container toolkit repo.
+  ansible.builtin.get_url:
+    url: https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
+    dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
+    mode: "0644"
+
+- name: Install the nvidia container toolkit from the 'nvidia-container-toolkit' repo.
+  ansible.builtin.dnf:
+    name:
+      - nvidia-container-toolkit  # Tools and utils to enable GPU support in containers. From 'nvidia-container-toolkit' repo.
+    state: present
+
+- name: Install more required repos and packages from 'almalinux-extras' and 'almalinux-appstream' repos.
+  ansible.builtin.dnf:
+    name:
+      - almalinux-release-nvidia-driver # The 'almalinux-nvidia.repo'-config. AlmaLinux NVIDIA driver repository. From 'extras' repo.
+      - epel-release                    # The "Extra Packages for Enterprise Linux" repository configuration. From 'extras' repo.
+      - kernel-devel-matched            # Meta package to install matching core and devel packages for a given kernel. From 'appstream' repo.
+      - kernel-headers                  # Header files for the Linux kernel for use by glibc. From 'appstream' repo.
+      - podman                          # Container Engine. Manage Pods, Containers and Container Images. From 'appstream' repo.
+      - policycoreutils-python-utils    # SELinux policy core python utilities. From 'appstream' repo.
+    state: present
+
+- name: Install kernel and driver packages from the 'almalinux-nvidia' repo.
+  ansible.builtin.dnf:
+    name:
+      - nvidia-open-kmod    # Kernel module (kmod) for NVIDIA GPU hardware. From 'almalinux-nvidia' repo.
+      - nvidia-driver       # NVIDIA's proprietary display driver for NVIDIA graphic cards. From 'almalinux-nvidia' repo.
+      - nvidia-driver-cuda  # CUDA integration for nvidia-driver. From 'almalinux-nvidia' repo.
+    state: present
+  notify: Reboot Host
+
+- name: Flush Handlers -> Rebooting if "Reboot Host" was notified.
+  ansible.builtin.meta: flush_handlers
+
+- name: Generating fresh CDI spec for GPU.
+  ansible.builtin.command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+  changed_when: false

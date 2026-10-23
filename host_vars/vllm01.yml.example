@@ -1,0 +1,4 @@
+# Host variables go here.
+podman_user: "podman"
+podman_network: "container-network"
+container_data: "/path/to/your/containers/data"

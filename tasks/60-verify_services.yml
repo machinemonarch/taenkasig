@@ -1,0 +1,25 @@
+---
+# Check OpenWebUI to vLLM API.
+- name: Check if the Open WebUI can reach vLLM API.
+  containers.podman.podman_container_exec:
+    name: "{{ webui_name }}"
+    command: "curl -w %{http_code} -o /dev/null -s http://{{ vllm_name }}:{{ vllm_port }}/v1/models"
+  become_user: "{{ podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ service_user_account.uid }}"
+  register: open_webui_check
+  until: (open_webui_check.stdout | default('')) == "200"
+  retries: 2
+  delay: 10
+
+- name: Check if Caddy is serving Open WebUI interface over TLS.
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ caddy_host_port }}"
+    headers:
+      Host: "{{ caddy_site_address }}"
+    status_code: 200
+    validate_certs: false
+  register: caddy_http_check
+  until: caddy_http_check.status == 200
+  retries: 2
+  delay: 60

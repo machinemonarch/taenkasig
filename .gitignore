@@ -1,0 +1,7 @@
+inventory.yml
+group_vars/*.yml
+host_vars/*.yml
+*.retry
+.claude/*
+CLAUDE.md
+ROADMAP.md

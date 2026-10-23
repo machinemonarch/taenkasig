@@ -1,0 +1,56 @@
+[Unit]
+Description=vLLM Container
+StartLimitIntervalSec=1h
+StartLimitBurst=10
+
+[Container]
+# The image we want to use.
+Image={{ vllm_image }}
+
+# Name of the container.
+ContainerName={{ vllm_name }}
+
+# Assign the container to a local podman network.
+Network=container-apps.network
+
+# Local LLM Storage (must be accessible by the user running the container)
+# Syntax: host-path:container-path:options
+Volume={{ vllm_path }}:/root/.cache/huggingface
+
+# Add the hosts GPU.
+AddDevice=nvidia.com/gpu=all
+
+# Container- and engine command flags as well as tuneables go here.
+Exec=--model {{ vllm_model }}
+{%- for flag, value in vllm_engine_args.items() %}
+{%- if value is true %} --{{ flag }}
+{%- elif value is not false and value is not none %} --{{ flag }} {{ value }}
+{%- endif %}
+{%- endfor %}
+
+
+# Report healthy only once the API answers; systemd waits for that before calling the unit started.
+#
+# Health Check Command that runs inside container.
+HealthCmd="curl -fs http://localhost:{{ vllm_port }}/v1/models"
+
+# Podman checks every...
+HealthInterval=10s
+
+# Initial grace period. Covers vLLM downloading and loading weights.
+HealthStartPeriod=15m
+
+# Tell systemd it's healthy.
+Notify=healthy
+
+# Dedicated memory for the container.
+ShmSize=1g
+
+[Install]
+# Start by default on boot.
+WantedBy=default.target
+
+[Service]
+# Set Systemd Service timeout to 16 minutes. That's 1 minute longer than 'HealthStartPeriod'
+TimeoutStartSec=960 
+Restart=on-failure

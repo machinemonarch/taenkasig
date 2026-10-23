@@ -1,0 +1,38 @@
+---
+- name: Deploy a rootless self-hosted LLM inference stack.
+  hosts: inference
+  become: true
+  tasks:
+
+    - name: Include task files.
+      ansible.builtin.include_tasks: "{{ task_items }}"
+      loop:
+        - tasks/10-repos_and_packages.yml
+        - tasks/20-setup_service_account.yml
+        - tasks/30-selinux_policing.yml
+        - tasks/40-firewall_management.yml
+        - tasks/50-deploy_services.yml
+        - tasks/60-verify_services.yml
+      loop_control:
+        loop_var: task_items
+
+  handlers:
+    - name: Restart Container Services
+      ansible.builtin.systemd:
+        name: "{{ container_services }}"
+        scope: user
+        state: restarted
+      become: true
+      become_user: "{{ podman_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ service_user_account.uid }}"
+      loop:
+        - vllm.service
+        - open-webui.service
+        - caddy.service
+      loop_control:
+        loop_var: container_services
+
+    - name: Reboot Host
+      ansible.builtin.reboot:
+        msg: "Ansible handler ordered rebooting."

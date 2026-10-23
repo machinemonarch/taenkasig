@@ -1,0 +1,74 @@
+---
+- name: Ensure the quadlet directory exists for the container user.
+  ansible.builtin.file:
+    path: "/home/{{ podman_user }}/{{ config_path }}"
+    state: directory
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "0750"
+  loop:
+    - .config
+    - .config/containers
+    - .config/containers/systemd
+  loop_control:
+    loop_var: config_path
+
+- name: Deploy Caddyfile.
+  ansible.builtin.template:
+    src: "Caddyfile.j2"
+    dest: "{{ caddy_path }}/Caddyfile"
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "0640"
+  notify: Restart Container Services
+
+- name: Generate Systemd Units from Quadlets.
+  ansible.builtin.template:
+    src: "{{ quadlet_unit }}"
+    dest: "/home/{{ podman_user }}/.config/containers/systemd/{{ quadlet_unit | replace('.j2', '') }}"
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "0640"
+  loop:
+    - container-apps.network.j2
+    - vllm.container.j2
+    - open-webui.container.j2
+    - caddy.container.j2
+  loop_control:
+    loop_var: quadlet_unit
+  notify: Restart Container Services
+
+- name: Deploy Systemd Services as {{ podman_user }}.
+  become: true
+  become_user: "{{ podman_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ service_user_account.uid }}"
+  block:
+    - name: Reload the container user's systemd instance.
+      ansible.builtin.systemd:
+        scope: user
+        daemon_reload: true
+
+    - name: Flush Handlers -> Restarts Container Services if "Restart Container Services" was notified.
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start the vllm service.
+      ansible.builtin.systemd:
+        name: vllm.service
+        scope: user
+        state: started
+        enabled: true
+
+    - name: Enable and start the open-webui service.
+      ansible.builtin.systemd:
+        name: open-webui.service
+        scope: user
+        state: started
+        enabled: true
+
+    - name: Enable and start the caddy service.
+      ansible.builtin.systemd:
+        name: caddy.service
+        scope: user
+        state: started
+        enabled: true

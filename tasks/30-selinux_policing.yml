@@ -1,0 +1,52 @@
+---
+- name: Build the list of paths that must be container-accessible.
+  ansible.builtin.set_fact:
+    selinux_container_resources:
+      - "{{ vllm_path }}"
+      - "{{ webui_path }}"
+      - "{{ caddy_path }}"
+      - /dev/nvidiactl
+      - /dev/nvidia0
+      - /dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools
+
+- name: Create the container data directories.
+  ansible.builtin.file:
+    path: "{{ data_directory }}"
+    state: directory
+    recurse: true
+    owner: "{{ podman_user }}"
+    group: "{{ podman_user }}"
+    mode: "u=rwX,g=rX,o=" # Symbolic mode: Capital 'X' allows for directories to come out '0750' and files as '0640'.
+    setype: container_file_t # Instruct SELinux to allow container use of these folders...
+  loop:
+    - "{{ vllm_path }}"
+    - "{{ webui_path }}"
+    - "{{ caddy_path }}"
+    - "{{ caddy_path }}/data"
+  loop_control:
+    loop_var: data_directory
+
+- name: Add persistent SELinux labels.
+  ansible.builtin.command: "semanage fcontext -a -t container_file_t '{{ fcontext_item }}(/.*)?'" # ... And make sure that it sticks.
+  loop: "{{ selinux_container_resources }}"
+  loop_control:
+    loop_var: fcontext_item
+  register: fcontext_result
+  changed_when: fcontext_result.rc == 0 # Exit code is successful.
+  failed_when: fcontext_result.rc != 0 and 'already defined' not in fcontext_result.stderr # Failed for a reason other than an earlier deployment.
+
+- name: Restore file(s) default SELinux security contexts.
+  ansible.builtin.command: "restorecon -R -i -v '{{ restorecon_item }}'" # Ignore non-existing.
+  loop: "{{ selinux_container_resources }}"
+  loop_control:
+    loop_var: restorecon_item
+  register: restorecon_result
+  changed_when: restorecon_result.stdout != "" # restorecon only prints what it actually relabeled.
+
+# Allow container to access GPU device through CDI.
+- name: Allow containers to access devices.
+  ansible.posix.seboolean:
+    name: container_use_devices
+    state: true
+    persistent: true

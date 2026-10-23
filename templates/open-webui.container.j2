@@ -1,0 +1,33 @@
+[Unit]
+Description=Open WebUI Container
+Wants=vllm.service
+After=vllm.service
+
+[Container]
+# The image we want to use.
+Image={{ webui_image }}
+
+# Name of the container.
+ContainerName={{ webui_name }}
+
+# Assign the container to a local podman network.
+Network=container-apps.network
+
+# Local LLM Storage (must be accessible by the user running the container)
+# Syntax: host-path:container-path:options
+Volume={{ webui_path }}:/app/backend/data
+
+# Environment Variables
+Environment="OPENAI_API_BASE_URL=http://{{ vllm_name }}:{{ vllm_port }}/v1"
+
+# Dedicated memory for the container.
+ShmSize=1g
+
+[Install]
+# Start by default on boot.
+WantedBy=default.target
+
+[Service]
+# Add enough time to pull the entire container image.
+TimeoutStartSec=900
+Restart=always

@@ -1,0 +1,6 @@
+inference:
+  hosts:
+    vllm01:
+      ansible_host: 192.0.2.0  # IP of your ansible host.
+  vars:
+    ansible_user: your-ansible-admin-user

@@ -1,0 +1,35 @@
+[Unit]
+Description=Caddy Reverse Proxy Container
+Wants=open-webui.service
+After=open-webui.service
+
+[Container]
+# The image we want to use.
+Image={{ caddy_image }}
+
+# Name of the container.
+ContainerName={{ caddy_name }}
+
+# Assign the container to a local podman network.
+Network=container-apps.network
+
+# Persistent read-only caddy config.
+Volume={{ caddy_path }}/Caddyfile:/etc/caddy/Caddyfile:ro
+# Caddy variable data.
+Volume={{ caddy_path }}/data:/data
+
+# Port Binding
+PublishPort={{ caddy_host_port }}:443/tcp
+PublishPort={{ caddy_host_port }}:443/udp
+
+# Dedicated memory for the container.
+ShmSize=1g
+
+[Install]
+# Start by default on boot.
+WantedBy=default.target
+
+[Service]
+# Add enough time to pull the entire container image.
+TimeoutStartSec=900
+Restart=always

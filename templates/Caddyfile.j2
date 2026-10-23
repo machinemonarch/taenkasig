@@ -1,0 +1,10 @@
+# Global Options
+{
+	default_sni {{ caddy_site_address }}
+}
+
+# Site-specific Options
+{{ caddy_site_address }} {
+	tls internal
+	reverse_proxy {{ webui_name }}:{{ webui_port }}
+}
